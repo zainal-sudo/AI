@@ -5,7 +5,7 @@
       <div class="header-left">
         <div class="avatar">🤖</div>
         <div>
-          <h2>BSM AI Assistant</h2>
+          <h2>AMP AI Assistant</h2>
           <span class="status-indicator">Online &bull; Siap Membantu</span>
         </div>
       </div>
@@ -38,7 +38,7 @@
     <div class="messages-container" ref="listEl">
       <div v-if="messages.length === 0" class="welcome-box">
         <div class="welcome-icon">💬</div>
-        <h3>Selamat Datang di BSM AI</h3>
+        <h3>Selamat Datang di AMP AI</h3>
         <p>Tanyakan ringkasan penjualan, saldo piutang, kartu stok, atau data operasional cabang Anda.</p>
       </div>
 
@@ -203,7 +203,7 @@ const clearChat = () => {
 }
 
 const logout = () => {
-  localStorage.removeItem('bsm_token')
+  localStorage.removeItem('amp_token')
   localStorage.removeItem('finance_token')
   emit('logout')
 }
@@ -291,7 +291,7 @@ const send = async (preset?: string) => {
 .chat-app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
   background-color: #0f172a;
 }
 
@@ -574,7 +574,7 @@ const send = async (preset?: string) => {
 
 /* Input Footer */
 .chat-input-footer {
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)) 1rem;
   background: #1e293b;
   border-top: 1px solid #334155;
 }

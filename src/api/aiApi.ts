@@ -36,16 +36,22 @@ export const chatWithAiStream = async (
   handlers: { onDelta: (t: string) => void; onClear: () => void },
   signal?: AbortSignal
 ): Promise<AiChatResponse> => {
-  // Panggil chat reguler
-  const res = await api.post<{ success: boolean; data: AiChatResponse }>(
-    '/ai/chat',
-    { messages },
-    { timeout: CHAT_TIMEOUT, signal }
-  )
+  try {
+    // Panggil chat reguler
+    const res = await api.post<{ success: boolean; data: AiChatResponse }>(
+      '/ai/chat',
+      { messages },
+      { timeout: CHAT_TIMEOUT, signal }
+    )
 
-  const data = res.data.data
-  if (data && data.answer) {
-    handlers.onDelta(data.answer)
+    const data = res.data.data
+    if (data && data.answer) {
+      handlers.onDelta(data.answer)
+    }
+    return data
+  } catch (e: any) {
+    // Tampilkan pesan asli dari backend (bukan pesan generic axios)
+    const backendMsg = e?.response?.data?.message
+    throw new Error(backendMsg || e?.message || 'Gagal terhubung ke AI.')
   }
-  return data
 }

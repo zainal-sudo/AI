@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'BSM Cabang AI Assistant',
-        short_name: 'BSM AI',
-        description: 'Mobile AI Assistant untuk Operasional & Laporan BSM Cabang',
+        name: 'AMP Cabang AI Assistant',
+        short_name: 'AMP AI',
+        description: 'Mobile AI Assistant untuk Operasional & Laporan AMP Cabang',
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
@@ -50,7 +50,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       '/api': {
-        target: 'http://103.103.22.7:3099',
+        target: 'http://localhost:4000',
         changeOrigin: true,
         secure: false
       }

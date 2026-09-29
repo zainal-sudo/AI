@@ -13,12 +13,12 @@ import ChatApp from './components/ChatApp.vue'
 const isLoggedIn = ref(false)
 
 const checkLogin = () => {
-  const token = localStorage.getItem('bsm_token') || localStorage.getItem('finance_token')
+  const token = localStorage.getItem('amp_token') || localStorage.getItem('finance_token')
   isLoggedIn.value = !!token
 }
 
 const handleAuthExpired = () => {
-  localStorage.removeItem('bsm_token')
+  localStorage.removeItem('amp_token')
   localStorage.removeItem('finance_token')
   isLoggedIn.value = false
 }

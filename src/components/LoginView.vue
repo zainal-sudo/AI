@@ -3,8 +3,8 @@
     <div class="login-card">
       <div class="logo-area">
         <div class="logo-icon">🤖</div>
-        <h1>BSM AI Mobile</h1>
-        <p>Silakan login menggunakan akun BSM Cabang Anda</p>
+        <h1>AMP AI Mobile</h1>
+        <p>Silakan login menggunakan akun AMP Cabang Anda</p>
       </div>
 
       <form @submit.prevent="handleLogin" class="login-form">
@@ -119,7 +119,7 @@ const handleLogin = async () => {
 
     if (res.data?.success && res.data?.data?.token) {
       const token = res.data.data.token
-      localStorage.setItem('bsm_token', token)
+      localStorage.setItem('amp_token', token)
       localStorage.setItem('finance_token', token)
       toast.success('Login berhasil!')
       emit('login-success')
