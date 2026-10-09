@@ -105,6 +105,8 @@
           rows="1"
           placeholder="Ketik pertanyaan ke AI..."
           @keydown.enter.exact.prevent="send()"
+          @keydown.up.prevent="handleKeyUp"
+          @keydown.down.prevent="handleKeyDown"
           ref="inputEl"
         ></textarea>
         <button
@@ -148,6 +150,8 @@ const toast = useToast()
 const input = ref('')
 const loading = ref(false)
 const messages = ref<UiMessage[]>([])
+const historyIndex = ref<number>(-1)
+const tempInput = ref('')
 const listEl = ref<HTMLElement | null>(null)
 const inputEl = ref<HTMLTextAreaElement | null>(null)
 const abortCtrl = ref<AbortController | null>(null)
@@ -213,6 +217,35 @@ const copyText = (text: string) => {
   toast.success('Teks disalin ke clipboard!')
 }
 
+const handleKeyUp = () => {
+  const userMsgs = messages.value.filter(m => m.role === 'user')
+  if (userMsgs.length === 0) return
+
+  if (historyIndex.value === -1) {
+    tempInput.value = input.value
+    historyIndex.value = userMsgs.length - 1
+  } else if (historyIndex.value > 0) {
+    historyIndex.value--
+  }
+
+  if (historyIndex.value >= 0 && historyIndex.value < userMsgs.length) {
+    input.value = userMsgs[historyIndex.value].content
+  }
+}
+
+const handleKeyDown = () => {
+  if (historyIndex.value === -1) return
+
+  const userMsgs = messages.value.filter(m => m.role === 'user')
+  if (historyIndex.value < userMsgs.length - 1) {
+    historyIndex.value++
+    input.value = userMsgs[historyIndex.value].content
+  } else {
+    historyIndex.value = -1
+    input.value = tempInput.value
+  }
+}
+
 const feedback = async (idx: number, thumb: 1 | -1) => {
   const msg = messages.value[idx]
   if (!msg.chatLogId) return
@@ -231,6 +264,8 @@ const send = async (preset?: string) => {
   const text = (preset ?? input.value).trim()
   if (!text || loading.value) return
   input.value = ''
+  historyIndex.value = -1
+  tempInput.value = ''
 
   messages.value.push({ role: 'user', content: text })
   loading.value = true
