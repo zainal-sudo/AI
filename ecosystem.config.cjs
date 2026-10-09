@@ -1,9 +1,9 @@
 ﻿module.exports = {
   apps: [
     {
-      name:"BE-AI",
+      name:"FE-AI",
       script: "npx",
-      args: "serve dist -s -l 5174",
+      args: "serve dist -s -l 5175",
       env: {
         NODE_ENV: "production"
       }
