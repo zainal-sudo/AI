@@ -1,7 +1,7 @@
 ﻿module.exports = {
   apps: [
     {
-      name: "amp-ai-mobile",
+      name: "BE-AI",
       script: "npx",
       args: "serve dist -s -l 5174",
       env: {
