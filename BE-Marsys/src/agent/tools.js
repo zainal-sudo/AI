@@ -226,6 +226,70 @@ const tools = [
     })
   },
   {
+    name: 'laporan_laba_rugi',
+    description:
+      'Laporan Laba Rugi resmi dari tabel tlabarugi per bulan. Kategori: PENJUALAN, HARGA POKOK PENJUALAN (HPP), ' +
+      'BIAYA PENJUALAN dan PEMASARAN, BIAYA ADMINISTRASI dan UMUM, BIAYA PENYUSUTAN, PENDAPATAN LAIN-LAIN. ' +
+      'Mengembalikan ringkasan per kategori plus baris TOTAL (TOTAL PENJUALAN, TOTAL HPP, LABA KOTOR, LABA BERSIH). ' +
+      'Gunakan untuk pertanyaan laba, rugi, untung, margin bersih, total pendapatan, total biaya. Tanggal format YYYY-MM-DD, otomatis dipetakan ke bulan.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tanggalAwal: { type: 'string', description: 'Tanggal awal periode (YYYY-MM-DD)' },
+        tanggalAkhir: { type: 'string', description: 'Tanggal akhir periode (YYYY-MM-DD)' }
+      },
+      required: ['tanggalAwal', 'tanggalAkhir']
+    },
+    fn: (a) => financeService.labaRugi({ tanggalAwal: a.tanggalAwal, tanggalAkhir: a.tanggalAkhir })
+  },
+  {
+    name: 'laporan_neraca',
+    description:
+      'Laporan Neraca / posisi keuangan dari tabel tneraca per akhir bulan. Kategori: KAS, BANK, PIUTANG, PERSEDIAAN, ' +
+      'AKTIVA TETAP, HUTANG DAGANG, HUTANG PAJAK, HUTANG BIAYA, MODAL, dll. Mengembalikan ringkasan per kategori plus ' +
+      'baris TOTAL (TOTAL ASET, TOTAL HUTANG, TOTAL MODAL, TOTAL HUTANG + MODAL). Gunakan untuk pertanyaan aset, hutang, modal, kas, bank.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tanggal: { type: 'string', description: 'Tanggal posisi neraca (YYYY-MM-DD), dipakai bulannya. Contoh 2026-09-29 = neraca Sept 2026' },
+        tahun: { type: 'number', description: 'Tahun neraca (alternatif selain tanggal), contoh 2026' },
+        bulan: { type: 'number', description: 'Bulan neraca 1-12 (wajib jika pakai tahun)' }
+      },
+      required: []
+    },
+    fn: (a) => financeService.neraca({ tanggal: a.tanggal, tahun: a.tahun, bulan: a.bulan })
+  },
+  {
+    name: 'buku_besar',
+    description:
+      'Buku besar / jurnal umum dari view alljurnal: daftar transaksi debet-kredit per akun per tanggal. ' +
+      'Gunakan untuk pertanyaan mutasi akun, rincian jurnal, atau cek transaksi kas/bank/biaya tertentu. Tanggal format YYYY-MM-DD.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tanggalAwal: { type: 'string', description: 'Tanggal awal (YYYY-MM-DD)' },
+        tanggalAkhir: { type: 'string', description: 'Tanggal akhir (YYYY-MM-DD)' },
+        akun: { type: 'string', description: 'Filter nama atau kode akun, contoh Kas, Bank, Beban Sewa (opsional)' },
+        limit: { type: 'number', description: 'Maksimal baris (default 200, maks 1000)' }
+      },
+      required: ['tanggalAwal', 'tanggalAkhir']
+    },
+    fn: (a) => financeService.bukuBesar({ tanggalAwal: a.tanggalAwal, tanggalAkhir: a.tanggalAkhir, akun: a.akun, limit: a.limit })
+  },
+  {
+    name: 'daftar_akun',
+    description: 'Daftar Chart of Accounts / COA dari trekening (kode + nama akun). Dipakai untuk mencari kode akun sebelum cek buku besar.',
+    parameters: {
+      type: 'object',
+      properties: {
+        search: { type: 'string', description: 'Teks pencarian nama atau kode akun (opsional)' },
+        limit: { type: 'number', description: 'Maksimal baris' }
+      },
+      required: []
+    },
+    fn: (a) => financeService.daftarAkun(a.search || '', a.limit)
+  },
+  {
     name: 'rekap_kunjungan_marketing',
     description:
       'Melihat rekap atau detail kunjungan marketing (tkunjungan) berdasarkan rentang tanggal. ' +
