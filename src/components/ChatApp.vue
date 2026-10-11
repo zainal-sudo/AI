@@ -10,6 +10,9 @@
         </div>
       </div>
       <div class="header-actions">
+        <button class="icon-btn" @click="showHistory" :disabled="loadingHistory" title="Tampilkan riwayat 24 jam terakhir">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+        </button>
         <button class="icon-btn" @click="clearChat" title="Hapus Riwayat">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
         </button>
@@ -36,7 +39,11 @@
 
     <!-- Messages List -->
     <div class="messages-container" ref="listEl">
-      <div v-if="messages.length === 0" class="welcome-box">
+      <div v-if="loadingHistory" class="history-banner">⏳ Memuat riwayat 24 jam terakhir...</div>
+      <div v-else-if="historyLoaded && messages.length > 0" class="history-banner">
+        🕘 Menampilkan riwayat 24 jam terakhir ({{ historyCount }} percakapan)
+      </div>
+      <div v-if="!loadingHistory && messages.length === 0" class="welcome-box">
         <div class="welcome-icon">💬</div>
         <h3>Selamat Datang di AMP AI</h3>
         <p>Tanyakan ringkasan penjualan, saldo piutang, kartu stok, atau data operasional cabang Anda.</p>
@@ -50,6 +57,7 @@
       >
         <div class="message-bubble">
           <div class="message-content" v-html="renderMd(msg.content)"></div>
+          <div v-if="msg.createdAt" class="message-time">{{ formatTime(msg.createdAt) }}</div>
 
           <!-- Sources -->
           <div v-if="msg.sources && msg.sources.length > 0" class="sources-list">
@@ -132,9 +140,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
-import { chatWithAiStream, sendAiFeedback, type AiChatMessage } from '@/api/aiApi'
+import { chatWithAiStream, sendAiFeedback, getAiHistory, type AiChatMessage } from '@/api/aiApi'
 
 interface UiMessage {
   role: 'user' | 'assistant'
@@ -142,6 +150,7 @@ interface UiMessage {
   sources?: string[]
   chatLogId?: number
   thumb?: 1 | -1
+  createdAt?: string
 }
 
 const emit = defineEmits(['logout'])
@@ -150,6 +159,9 @@ const toast = useToast()
 const input = ref('')
 const loading = ref(false)
 const messages = ref<UiMessage[]>([])
+const loadingHistory = ref(false)
+const historyLoaded = ref(false)
+const historyCount = ref(0)
 const historyIndex = ref<number>(-1)
 const tempInput = ref('')
 const listEl = ref<HTMLElement | null>(null)
@@ -195,13 +207,78 @@ const scrollBottom = () => {
   })
 }
 
+const formatTime = (iso?: string) => {
+  if (!iso) return ''
+  try {
+    const d = new Date(String(iso).replace(' ', 'T'))
+    return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return String(iso)
+  }
+}
+
+const loadHistory = async (manual = false) => {
+  if (loadingHistory.value) return
+  loadingHistory.value = true
+  try {
+    const data = await getAiHistory(24, 100)
+    const items = data?.items || []
+    historyCount.value = items.length
+    const mapped: UiMessage[] = []
+    for (const it of items) {
+      if (it.question) {
+        mapped.push({ role: 'user', content: it.question, createdAt: it.createdAt })
+      }
+      if (it.answer) {
+        mapped.push({
+          role: 'assistant',
+          content: it.answer,
+          sources: it.sources || [],
+          chatLogId: it.id,
+          thumb: it.thumb === 1 ? 1 : it.thumb === -1 ? -1 : undefined,
+          createdAt: it.createdAt,
+        })
+      }
+    }
+    messages.value = mapped
+    if (manual) {
+      if (items.length === 0) {
+        toast.info('Tidak ada riwayat chat 24 jam terakhir untuk user ini.')
+      } else {
+        toast.success(`${items.length} percakapan 24 jam terakhir dimuat.`)
+      }
+    }
+  } catch (e: any) {
+    // Riwayat gagal dimuat bukan fatal — biarkan chat tetap bisa dipakai
+    console.warn('Gagal memuat riwayat:', e?.message || e)
+    if (manual) {
+      toast.error(e?.response?.data?.message || e?.message || 'Gagal memuat riwayat.')
+    }
+  } finally {
+    loadingHistory.value = false
+    historyLoaded.value = true
+    scrollBottom()
+  }
+}
+
+const showHistory = async () => {
+  if (messages.value.length > 0) {
+    if (!confirm('Muat ulang riwayat 24 jam terakhir? Chat yang tampil sekarang akan diganti.')) return
+  }
+  await loadHistory(true)
+}
+
+onMounted(() => {
+  loadHistory()
+})
+
 const stop = () => {
   abortCtrl.value?.abort()
   loading.value = false
 }
 
 const clearChat = () => {
-  if (confirm('Hapus semua riwayat percakapan?')) {
+  if (confirm('Hapus tampilan chat? (Data di server tetap tersimpan 24 jam, bisa dimuat lagi via tombol 🕘)')) {
     messages.value = []
   }
 }
@@ -398,6 +475,11 @@ const send = async (preset?: string) => {
   color: #ef4444;
 }
 
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Quick Chips */
 .quick-chips-container {
   padding: 0.75rem 1rem;
@@ -447,6 +529,22 @@ const send = async (preset?: string) => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.history-banner {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+}
+
+.message-time {
+  font-size: 0.65rem;
+  opacity: 0.55;
+  margin-top: 0.35rem;
 }
 
 .welcome-box {

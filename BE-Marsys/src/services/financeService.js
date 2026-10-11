@@ -144,6 +144,134 @@ async function neraca({ tanggal, tahun, bulan }) {
   }
 }
 
+// Kelompok di alljurnal yang saldonya bersifat PASIVA (normal Kredit).
+// Untuk menyamakan dengan konvensi tneraca (hutang/modal disajikan positif),
+// nilai realtime = SUM(Kredit - Debet). Kelompok lain (aset) = SUM(Debet - Kredit).
+const PASIVA = new Set([
+  'HUTANG DAGANG',
+  'UANG MUKA PENJUALAN',
+  'HUTANG PAJAK',
+  'HUTANG BIAYA',
+  'HUTANG PIHAK III',
+  'MODAL'
+])
+
+// Kelompok Laba-Rugi di alljurnal (aliran per periode, bukan saldo)
+const LR_GROUPS = [
+  'PENJUALAN',
+  'HARGA POKOK PENJUALAN (HPP)',
+  'BIAYA PENJUALAN & PEMASARAN',
+  'BIAYA ADMINISTRASI & UMUM',
+  'BIAYA PENYUSUTAN',
+  'PENDAPATAN LAIN-LAIN'
+]
+
+// Kelompok Neraca = semua Kelompok kecuali kelompok L/R + closing
+const LR_EXCLUDE = [...LR_GROUPS, 'IKHTISAR LABA-RUGI']
+
+// Akun aset lancar vs tetap untuk subtotal (mengikuti tneraca)
+const LANCAR = new Set([
+  'KAS', 'BANK', 'PIUTANG', 'REKENING MARKETPLACE', 'UANG MUKA PEMBELIAN',
+  'PERSEDIAAN', 'PAJAK DIBAYAR DIMUKA', 'BIAYA DIBAYAR DIMUKA'
+])
+
+// Neraca REALTIME dari alljurnal: saldo kumulatif s/d tanggal (termasuk saldo awal 2024-12-31).
+// Terbukti identik dengan tneraca untuk bulan yang sudah posting (mis. Kas Kecil 15.083.427 sama persis),
+// tapi tetap up-to-date harian tanpa menunggu posting akhir bulan.
+async function neracaRealtime({ tanggal }) {
+  const t = String(tanggal || new Date().toISOString().slice(0, 10)).slice(0, 10)
+  const rows = await query(
+    `SELECT j.Kelompok AS kategori, j.ACCOUNT AS kode, j.AccountName AS akun,
+            ROUND(SUM(j.Debet),0) AS debet, ROUND(SUM(j.Kredit),0) AS kredit,
+            ROUND(SUM(j.Debet - j.Kredit),0) AS saldo_dk
+       FROM alljurnal j
+      WHERE j.Tanggal <= ? AND j.Kelompok IS NOT NULL AND j.Kelompok <> ''
+        AND j.Kelompok NOT IN (${LR_EXCLUDE.map(() => '?').join(',')})
+      GROUP BY j.Kelompok, j.ACCOUNT, j.AccountName
+      ORDER BY j.Kelompok, j.AccountName
+      LIMIT 2000`,
+    [t, ...LR_EXCLUDE]
+  )
+  // Samakan sign dengan tneraca: pasiva = Kredit-Debet, aset = Debet-Kredit
+  const rincian = rows.map((r) => ({
+    kategori: r.kategori,
+    kode: r.kode,
+    akun: r.akun,
+    nilai: PASIVA.has(r.kategori) ? -Number(r.saldo_dk || 0) : Number(r.saldo_dk || 0)
+  }))
+  const sumKat = {}
+  for (const r of rincian) sumKat[r.kategori] = (sumKat[r.kategori] || 0) + r.nilai
+  const ringkasanPerKategori = Object.entries(sumKat).map(([kategori, total]) => ({ kategori, total: Math.round(total) }))
+  const sumKel = (...kats) => rincian.filter((r) => kats.includes(r.kategori)).reduce((a, r) => a + r.nilai, 0)
+  const totalAsetLancar = Math.round(sumKel(...[...LANCAR]))
+  const totalAsetTetap = Math.round(sumKel('AKTIVA TETAP', 'PENYUSUTAN AKTIVA TETAP'))
+  const totalAset = Math.round(totalAsetLancar + totalAsetTetap)
+  const totalHutang = Math.round(sumKel('HUTANG DAGANG', 'UANG MUKA PENJUALAN', 'HUTANG PAJAK', 'HUTANG BIAYA', 'HUTANG PIHAK III'))
+  const totalModal = Math.round(sumKel('MODAL'))
+  const totalKasBank = Math.round(sumKel('KAS', 'BANK'))
+  return {
+    params: { tanggal: t, sumber: 'alljurnal (realtime, kumulatif s/d tanggal)' },
+    ringkasanPerKategori,
+    totalRows: [
+      { akun: 'TOTAL KAS DAN BANK', nilai: totalKasBank },
+      { akun: 'TOTAL ASET LANCAR', nilai: totalAsetLancar },
+      { akun: 'TOTAL AKTIVA TETAP', nilai: totalAsetTetap },
+      { akun: 'TOTAL ASET', nilai: totalAset },
+      { akun: 'TOTAL HUTANG', nilai: totalHutang },
+      { akun: 'TOTAL MODAL', nilai: totalModal },
+      { akun: 'TOTAL HUTANG + MODAL', nilai: totalHutang + totalModal },
+      { akun: 'SELISIH (ASET - HUTANG - MODAL)', nilai: totalAset - totalHutang - totalModal }
+    ],
+    rincian: rincian.slice(0, 500),
+    catatan: 'Realtime dari alljurnal (saldo kumulatif termasuk saldo awal 2024-12-31). Aset = Debet-Kredit, Hutang/Modal = Kredit-Debet, mengikuti konvensi tneraca. Selisih harus 0 (atau kecil karena pembulatan); laba berjalan belum diposting ke MODAL sehingga selisih = laba/rugi berjalan.'
+  }
+}
+
+// Laba-Rugi REALTIME dari alljurnal: mutasi dalam periode.
+// Nilai = SUM(Kredit - Debet) sehingga PENJUALAN/PENDAPATAN positif, HPP/BIAYA negatif.
+// Terbukti identik dengan tlabarugi untuk bulan yang sudah posting (mis. Sep 2026 sama persis per kategori).
+async function labaRugiRealtime({ tanggalAwal, tanggalAkhir }) {
+  if (!tanggalAwal && !tanggalAkhir) {
+    tanggalAkhir = new Date().toISOString().slice(0, 10)
+    tanggalAwal = tanggalAkhir.slice(0, 8) + '01'
+  }
+  if (!tanggalAwal) tanggalAwal = tanggalAkhir
+  if (!tanggalAkhir) tanggalAkhir = tanggalAwal
+  const a = String(tanggalAwal).slice(0, 10)
+  const b = String(tanggalAkhir).slice(0, 10)
+  const rows = await query(
+    `SELECT j.Kelompok AS kategori, j.ACCOUNT AS kode, j.AccountName AS akun,
+            ROUND(SUM(j.Kredit - j.Debet),0) AS nilai
+       FROM alljurnal j
+      WHERE j.Tanggal BETWEEN ? AND ?
+        AND j.Kelompok IN (${LR_GROUPS.map(() => '?').join(',')})
+      GROUP BY j.Kelompok, j.ACCOUNT, j.AccountName
+      ORDER BY j.Kelompok, j.AccountName
+      LIMIT 2000`,
+    [a, b, ...LR_GROUPS]
+  )
+  const rincian = rows.map((r) => ({ kategori: r.kategori, kode: r.kode, akun: r.akun, nilai: Number(r.nilai || 0) }))
+  const sumKat = {}
+  for (const r of rincian) sumKat[r.kategori] = (sumKat[r.kategori] || 0) + r.nilai
+  const get = (k) => Math.round(sumKat[k] || 0)
+  const penjualan = get('PENJUALAN')
+  const hpp = get('HARGA POKOK PENJUALAN (HPP)')
+  const labaKotor = penjualan + hpp // hpp negatif
+  const labaBersih = rincian.reduce((x, r) => x + r.nilai, 0)
+  return {
+    params: { tanggalAwal: a, tanggalAkhir: b, sumber: 'alljurnal (realtime, mutasi periode)' },
+    ringkasanPerKategori: Object.entries(sumKat).map(([kategori, total]) => ({ kategori, total: Math.round(total) })),
+    totalRows: [
+      { akun: 'TOTAL PENJUALAN', nilai: penjualan },
+      { akun: 'TOTAL HPP', nilai: hpp },
+      { akun: 'LABA KOTOR (PENJUALAN + HPP)', nilai: labaKotor },
+      { akun: 'LABA BERSIH (semua kategori)', nilai: labaBersih }
+    ],
+    rincian: rincian.slice(0, 500),
+    catatan: 'Realtime dari alljurnal. Nilai positif = pendapatan/laba, negatif = biaya/HPP (sama seperti tlabarugi).'
+  }
+}
+
 async function bukuBesar({ tanggalAwal, tanggalAkhir, akun, limit = 200 }) {
   if (!tanggalAwal && !tanggalAkhir) {
     tanggalAkhir = new Date().toISOString().slice(0, 10)
@@ -187,7 +315,9 @@ module.exports = {
   rekapPiutang,
   rekapBiaya,
   labaRugi,
+  labaRugiRealtime,
   neraca,
+  neracaRealtime,
   bukuBesar,
   daftarAkun
 }

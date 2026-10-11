@@ -24,6 +24,24 @@ export const chatWithAi = (messages: AiChatMessage[]) =>
     .post<{ success: boolean; data: AiChatResponse }>('/ai/chat', { messages }, { timeout: CHAT_TIMEOUT })
     .then((res) => res.data.data)
 
+export interface AiHistoryItem {
+  id: number
+  question: string
+  answer: string
+  sources: string[]
+  model?: string
+  toolCount?: number
+  thumb?: number
+  createdAt?: string
+}
+
+export const getAiHistory = (hours = 24, limit = 100) =>
+  api
+    .get<{ success: boolean; data: { items: AiHistoryItem[]; hours: number } }>('/ai/history', {
+      params: { hours, limit },
+    })
+    .then((res) => res.data.data)
+
 export const sendAiFeedback = (chatLogId: number, thumb: 1 | -1) =>
   api
     .post<{ success: boolean }>('/ai/feedback', { chatLogId, thumb }, { timeout: CHAT_TIMEOUT })

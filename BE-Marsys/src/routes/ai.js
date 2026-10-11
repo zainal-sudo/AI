@@ -43,6 +43,16 @@ router.post('/chat', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+router.get('/history', async (req, res, next) => {
+  try {
+    const hours = req.query.hours || 24
+    const limit = req.query.limit || 100
+    const userId = req.user && req.user.sub
+    const items = await chatlog.getHistory({ userId, hours, limit })
+    res.json({ success: true, data: { items, hours: Math.min(Math.max(parseInt(hours, 10) || 24, 1), 168) } })
+  } catch (e) { next(e) }
+})
+
 router.post('/feedback', async (req, res, next) => {
   try {
     const { chatLogId, thumb } = req.body || {}

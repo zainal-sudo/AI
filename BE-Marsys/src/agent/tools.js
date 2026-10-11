@@ -228,10 +228,8 @@ const tools = [
   {
     name: 'laporan_laba_rugi',
     description:
-      'Laporan Laba Rugi resmi dari tabel tlabarugi per bulan. Kategori: PENJUALAN, HARGA POKOK PENJUALAN (HPP), ' +
-      'BIAYA PENJUALAN dan PEMASARAN, BIAYA ADMINISTRASI dan UMUM, BIAYA PENYUSUTAN, PENDAPATAN LAIN-LAIN. ' +
-      'Mengembalikan ringkasan per kategori plus baris TOTAL (TOTAL PENJUALAN, TOTAL HPP, LABA KOTOR, LABA BERSIH). ' +
-      'Gunakan untuk pertanyaan laba, rugi, untung, margin bersih, total pendapatan, total biaya. Tanggal format YYYY-MM-DD, otomatis dipetakan ke bulan.',
+      'Laporan Laba Rugi resmi HASIL POSTING dari tabel tlabarugi per bulan (bukan realtime, mengikuti tutup buku). Kategori: PENJUALAN, HPP, BIAYA. ' +
+      'Pakai untuk angka resmi bulanan yang sudah tutup buku. Untuk posisi TERKINI / realtime / bulan berjalan, pakai laporan_laba_rugi_realtime.',
     parameters: {
       type: 'object',
       properties: {
@@ -243,11 +241,26 @@ const tools = [
     fn: (a) => financeService.labaRugi({ tanggalAwal: a.tanggalAwal, tanggalAkhir: a.tanggalAkhir })
   },
   {
+    name: 'laporan_laba_rugi_realtime',
+    description:
+      'Laporan Laba Rugi REALTIME langsung dari jurnal alljurnal: mutasi Kredit-Debet dalam periode, TANPA menunggu posting. ' +
+      'Hasil IDENTIK dengan tlabarugi untuk bulan yang sudah posting, tapi up-to-date sampai hari ini. ' +
+      'Wajib dipakai untuk laba/rugi bulan BERJALAN, hari ini, atau posisi terkini. Positif = pendapatan, negatif = biaya/HPP.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tanggalAwal: { type: 'string', description: 'Tanggal awal periode (YYYY-MM-DD)' },
+        tanggalAkhir: { type: 'string', description: 'Tanggal akhir periode (YYYY-MM-DD)' }
+      },
+      required: ['tanggalAwal', 'tanggalAkhir']
+    },
+    fn: (a) => financeService.labaRugiRealtime({ tanggalAwal: a.tanggalAwal, tanggalAkhir: a.tanggalAkhir })
+  },
+  {
     name: 'laporan_neraca',
     description:
-      'Laporan Neraca / posisi keuangan dari tabel tneraca per akhir bulan. Kategori: KAS, BANK, PIUTANG, PERSEDIAAN, ' +
-      'AKTIVA TETAP, HUTANG DAGANG, HUTANG PAJAK, HUTANG BIAYA, MODAL, dll. Mengembalikan ringkasan per kategori plus ' +
-      'baris TOTAL (TOTAL ASET, TOTAL HUTANG, TOTAL MODAL, TOTAL HUTANG + MODAL). Gunakan untuk pertanyaan aset, hutang, modal, kas, bank.',
+      'Laporan Neraca resmi HASIL POSTING dari tabel tneraca per akhir bulan (bukan realtime). ' +
+      'Pakai untuk angka resmi akhir bulan yang sudah tutup buku. Untuk posisi TERKINI / hari ini, pakai laporan_neraca_realtime.',
     parameters: {
       type: 'object',
       properties: {
@@ -258,6 +271,21 @@ const tools = [
       required: []
     },
     fn: (a) => financeService.neraca({ tanggal: a.tanggal, tahun: a.tahun, bulan: a.bulan })
+  },
+  {
+    name: 'laporan_neraca_realtime',
+    description:
+      'Neraca REALTIME langsung dari jurnal alljurnal: saldo kumulatif s/d tanggal (termasuk saldo awal 31 Des 2024), TANPA menunggu posting akhir bulan. ' +
+      'Hasil per akun IDENTIK dengan tneraca untuk bulan yang sudah posting, tapi up-to-date sampai hari ini. ' +
+      'Wajib dipakai untuk kas/bank/aset/hutang/modal SAAT INI atau tanggal belum tutup buku. Mengembalikan TOTAL KAS DAN BANK, TOTAL ASET, TOTAL HUTANG, TOTAL MODAL.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tanggal: { type: 'string', description: 'Tanggal posisi (YYYY-MM-DD). Default hari ini.' }
+      },
+      required: []
+    },
+    fn: (a) => financeService.neracaRealtime({ tanggal: a.tanggal })
   },
   {
     name: 'buku_besar',

@@ -52,4 +52,37 @@ async function saveFeedback({ chatLogId, thumb }) {
   return true
 }
 
-module.exports = { ensureTable, saveChat, saveFeedback }
+async function getHistory({ userId, hours = 24, limit = 100 }) {
+  if (!cfg.chatlogTable) return []
+  await ensureTable()
+  const h = Math.min(Math.max(parseInt(hours, 10) || 24, 1), 168)
+  const lim = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 200)
+  const rows = await query(
+    `SELECT id, question, answer, sources, model, tool_count, thumb, created_at
+       FROM ai_chatlog
+      WHERE user_id = ?
+        AND created_at >= (NOW() - INTERVAL ? HOUR)
+      ORDER BY created_at ASC, id ASC
+      LIMIT ${lim}`,
+    [userId, h]
+  )
+  return rows.map((r) => {
+    let sources = []
+    try {
+      const parsed = typeof r.sources === 'string' ? JSON.parse(r.sources) : r.sources
+      if (Array.isArray(parsed)) sources = parsed
+    } catch (e) { sources = [] }
+    return {
+      id: r.id,
+      question: r.question,
+      answer: r.answer,
+      sources,
+      model: r.model,
+      toolCount: r.tool_count,
+      thumb: r.thumb,
+      createdAt: r.created_at
+    }
+  })
+}
+
+module.exports = { ensureTable, saveChat, saveFeedback, getHistory }
