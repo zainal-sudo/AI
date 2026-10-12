@@ -174,6 +174,12 @@ const SOURCE_LABELS: Record<string, string> = {
   saldo_piutang: 'Saldo Piutang',
   kartu_stok: 'Kartu Stok',
   dashboard_summary: 'Dashboard/Briefing',
+  rekap_pembelian: 'Rekap Pembelian',
+  detail_pembelian: 'Detail Pembelian',
+  rekap_po: 'Rekap Purchase Order',
+  daftar_supplier: 'Daftar Supplier',
+  hutang_supplier: 'Hutang Supplier',
+  rekap_pembayaran_supplier: 'Pembayaran Supplier',
 }
 
 const QUICK_CHIPS = [
@@ -182,6 +188,8 @@ const QUICK_CHIPS = [
   'Faktur >120 hari',
   'Top penunggak piutang',
   'Stok kritis',
+  'Pembelian bulan ini',
+  'Hutang supplier',
 ]
 
 const canSend = computed(() => input.value.trim().length > 0 && !loading.value)

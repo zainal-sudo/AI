@@ -3,6 +3,7 @@ const stockService = require('../services/stockService')
 const productionService = require('../services/productionService')
 const financeService = require('../services/financeService')
 const marketingService = require('../services/marketingService')
+const purchaseService = require('../services/purchaseService')
 
 // Definisikan tools yang bisa dipakai AI agent.
 // Setiap tool: name, description, parameters (JSON Schema function-calling), dan fn(args) -> data mentah
@@ -345,6 +346,128 @@ const tools = [
       searchMarketing: a.marketing,
       searchCustomer: a.customer,
       keperluan: a.keperluan
+    })
+  },
+  {
+    name: 'rekap_pembelian',
+    description:
+      'Rekap PEMBELIAN / faktur dari supplier (tinv) berdasarkan periode. Bisa diringkas total, per bulan, per supplier, atau per bahan. ' +
+      'Mengembalikan jumlah faktur, nilai (DPP), PPN, yang sudah dibayar, dan sisa hutang. Tanggal format YYYY-MM-DD.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tanggalAwal: { type: 'string', description: 'Tanggal awal (YYYY-MM-DD)' },
+        tanggalAkhir: { type: 'string', description: 'Tanggal akhir (YYYY-MM-DD)' },
+        groupBy: {
+          type: 'string',
+          enum: ['none', 'bulan', 'supplier', 'bahan'],
+          description: 'Pengelompokan: total (none), per bulan, per supplier, atau per bahan'
+        },
+        supplier: { type: 'string', description: 'Filter nama supplier (sebagian nama boleh)' },
+        bahan: { type: 'string', description: 'Filter nama/kode bahan (dipakai saat groupBy bahan)' }
+      },
+      required: ['tanggalAwal', 'tanggalAkhir']
+    },
+    fn: (a) => purchaseService.rekapPembelian({
+      tanggalAwal: a.tanggalAwal, tanggalAkhir: a.tanggalAkhir,
+      groupBy: a.groupBy || 'none',
+      searchSupplier: a.supplier, searchBahan: a.bahan
+    })
+  },
+  {
+    name: 'detail_pembelian',
+    description:
+      'Detail item pembelian per baris (per bahan dalam faktur supplier) pada suatu periode, lengkap dengan qty, harga, diskon, dan nilai. ' +
+      'Gunakan untuk pertanyaan per bahan/supplier. Tanggal format YYYY-MM-DD.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tanggalAwal: { type: 'string', description: 'Tanggal awal (YYYY-MM-DD)' },
+        tanggalAkhir: { type: 'string', description: 'Tanggal akhir (YYYY-MM-DD)' },
+        supplier: { type: 'string', description: 'Filter nama supplier' },
+        bahan: { type: 'string', description: 'Filter nama/kode bahan' },
+        limit: { type: 'number', description: 'Jumlah baris maksimal (default 200)' }
+      },
+      required: ['tanggalAwal', 'tanggalAkhir']
+    },
+    fn: (a) => purchaseService.detailPembelian({
+      tanggalAwal: a.tanggalAwal, tanggalAkhir: a.tanggalAkhir,
+      searchSupplier: a.supplier, searchBahan: a.bahan, limit: a.limit
+    })
+  },
+  {
+    name: 'rekap_po',
+    description:
+      'Rekap PURCHASE ORDER ke supplier (tpo) berdasarkan periode. Bisa diringkas total, per bulan, per supplier, per bahan, atau daftar detail PO. ' +
+      'Mengembalikan jumlah PO, nilai (DPP), dan PPN. Tanggal format YYYY-MM-DD.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tanggalAwal: { type: 'string', description: 'Tanggal awal (YYYY-MM-DD)' },
+        tanggalAkhir: { type: 'string', description: 'Tanggal akhir (YYYY-MM-DD)' },
+        groupBy: {
+          type: 'string',
+          enum: ['none', 'bulan', 'supplier', 'bahan', 'detail'],
+          description: 'Pengelompokan: total (none), per bulan, per supplier, per bahan, atau daftar detail PO'
+        },
+        supplier: { type: 'string', description: 'Filter nama supplier (sebagian nama boleh)' },
+        bahan: { type: 'string', description: 'Filter nama/kode bahan (dipakai saat groupBy bahan)' },
+        limit: { type: 'number', description: 'Maksimal baris (default 200, untuk detail)' }
+      },
+      required: ['tanggalAwal', 'tanggalAkhir']
+    },
+    fn: (a) => purchaseService.rekapPo({
+      tanggalAwal: a.tanggalAwal, tanggalAkhir: a.tanggalAkhir,
+      groupBy: a.groupBy || 'none',
+      searchSupplier: a.supplier, searchBahan: a.bahan, limit: a.limit
+    })
+  },
+  {
+    name: 'daftar_supplier',
+    description: 'Cari daftar supplier (id + nama + alamat + telepon + kontak + npwp). Dipakai untuk mencari supplier pembelian.',
+    parameters: {
+      type: 'object',
+      properties: { search: { type: 'string', description: 'Teks pencarian nama supplier (opsional)' }, limit: { type: 'number' } },
+      required: []
+    },
+    fn: (a) => purchaseService.daftarSupplier(a.search || '', a.limit)
+  },
+  {
+    name: 'hutang_supplier',
+    description:
+      'Daftar sisa HUTANG ke supplier yang belum dibayar (nilai faktur - yang sudah dibayar > 0). ' +
+      'Bisa difilter berdasarkan nama supplier. Untuk pertanyaan hutang usaha / berapa hutang ke supplier.',
+    parameters: {
+      type: 'object',
+      properties: {
+        supplier: { type: 'string', description: 'Filter nama supplier (opsional)' }
+      },
+      required: []
+    },
+    fn: (a) => purchaseService.hutangSupplier({ searchSupplier: a.supplier })
+  },
+  {
+    name: 'rekap_pembayaran_supplier',
+    description:
+      'Rekap PEMBAYARAN ke supplier (tbayarsup) berdasarkan periode, bisa total atau per bulan / per supplier. ' +
+      'Mengembalikan jumlah pembayaran, total tunai, transfer, potongan, dan total bayar. Tanggal format YYYY-MM-DD.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tanggalAwal: { type: 'string', description: 'Tanggal awal (YYYY-MM-DD)' },
+        tanggalAkhir: { type: 'string', description: 'Tanggal akhir (YYYY-MM-DD)' },
+        groupBy: {
+          type: 'string',
+          enum: ['none', 'bulan', 'supplier'],
+          description: 'Pengelompokan: total (none), per bulan, atau per supplier'
+        },
+        supplier: { type: 'string', description: 'Filter nama supplier (opsional)' }
+      },
+      required: ['tanggalAwal', 'tanggalAkhir']
+    },
+    fn: (a) => purchaseService.rekapPembayaranSupplier({
+      tanggalAwal: a.tanggalAwal, tanggalAkhir: a.tanggalAkhir,
+      groupBy: a.groupBy || 'none', searchSupplier: a.supplier
     })
   }
 ]
