@@ -33,7 +33,7 @@ const cfg = {
     maxIterations: parseInt(process.env.AGENT_MAX_ITERATIONS || '6', 10)
   },
 
-  chatlogTable: (process.env.CHATLOG_TABLE || 'off').toLowerCase() === 'on'
+  chatlogTable: (process.env.CHATLOG_TABLE || 'on').toLowerCase() !== 'off'
 }
 
 module.exports = cfg

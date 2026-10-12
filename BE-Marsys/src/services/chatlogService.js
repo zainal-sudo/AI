@@ -1,8 +1,6 @@
 const { query } = require('../db')
-const cfg = require('../config')
 
 async function ensureTable() {
-  if (!cfg.chatlogTable) return
   await query(
     `CREATE TABLE IF NOT EXISTS ai_chatlog (
        id INT PRIMARY KEY AUTO_INCREMENT,
@@ -21,7 +19,6 @@ async function ensureTable() {
 }
 
 async function saveChat({ userId, userName, question, answer, sources, model, toolCount, chatLogId }) {
-  if (!cfg.chatlogTable) return chatLogId || null
   await ensureTable()
   const payload = chatLogId
     ? await query('SELECT id FROM ai_chatlog WHERE id = ? LIMIT 1', [chatLogId])
@@ -44,7 +41,6 @@ async function saveChat({ userId, userName, question, answer, sources, model, to
 }
 
 async function saveFeedback({ chatLogId, thumb }) {
-  if (!cfg.chatlogTable) return true
   await query(
     `UPDATE ai_chatlog SET thumb = ?, feedback_at = NOW() WHERE id = ?`,
     [thumb, chatLogId]
@@ -53,7 +49,6 @@ async function saveFeedback({ chatLogId, thumb }) {
 }
 
 async function getHistory({ userId, hours = 24, limit = 100 }) {
-  if (!cfg.chatlogTable) return []
   await ensureTable()
   const h = Math.min(Math.max(parseInt(hours, 10) || 24, 1), 168)
   const lim = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 200)

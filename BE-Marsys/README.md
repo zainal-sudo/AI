@@ -13,7 +13,8 @@ Aplikasi sumber: `D:\marsys2\Marsys2` (VB.NET WinForms, database MySQL `143.198.
   - **Penjualan**: `rekap_penjualan` (total/bulan/customer/marketing), `detail_penjualan` (per item), `rekap_penjualan_hpp_margin` (HPP & margin).
   - **Stok**: `kartu_stok` (mutasi + saldo berjalan, via SP `pkartuStok`), `history_stok` (via SP `pGetHistoryStok`), `saldo_stok` (stok saat ini, bisa disaring `kritisDiBawah`), `daftar_gudang`, `daftar_bahan`.
   - **Lainnya**: `daftar_customer`, `daftar_marketing`, `daftar_barang`.
-- `POST /api/ai/feedback` — simpan feedback 👍/👎 (opsional, jika `CHATLOG_TABLE=on` maka tabel `ai_chatlog` dibuat di DB yang sama).
+- `POST /api/ai/feedback` — simpan feedback 👍/👎 (tersimpan ke tabel `ai_chatlog` di DB yang sama; default aktif).
+- `GET /api/ai/history` — riwayat chat user (default 24 jam terakhir).
 - `GET /health` — status server.
 
 Kontrak respons mengikuti format frontend "AI Asistent": `{ success, data: { answer, sources, model, toolCount, chatLogId, usage } }`.
@@ -39,7 +40,7 @@ npm start                 # tersedia pada port 4000 (atur di .env PORT)
 | `OPENAI_MODEL` | Model (contoh `gpt-4o-mini`) |
 | `OPENAI_TIMEOUT` | Timeout LLM (ms) |
 | `AGENT_MAX_ITERATIONS` | Maks iterasi tool-call per pertanyaan |
-| `CHATLOG_TABLE` | `on`/`off` — simpan chat & feedback ke tabel `ai_chatlog` |
+| `CHATLOG_TABLE` | `on`/`off` — simpan riwayat & feedback ke tabel `ai_chatlog` (default `on`) |
 
 > Catatan keamanan: API hanya **membaca** data (read-only). LLM **tidak pernah** menulis ke database.
 

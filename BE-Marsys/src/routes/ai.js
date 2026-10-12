@@ -17,16 +17,21 @@ router.post('/chat', async (req, res, next) => {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
     const result = await runAgent({ messages })
 
-    const savedId = await chatlog.saveChat({
-      userId: req.user && req.user.sub,
-      userName: req.user && req.user.name,
-      question: lastUserMsg ? lastUserMsg.content : '',
-      answer: result.answer,
-      sources: result.sources,
-      model: result.model,
-      toolCount: result.toolCount,
-      chatLogId: chatLogId || null
-    })
+    let savedId = null
+    try {
+      savedId = await chatlog.saveChat({
+        userId: req.user && req.user.sub,
+        userName: req.user && req.user.name,
+        question: lastUserMsg ? lastUserMsg.content : '',
+        answer: result.answer,
+        sources: result.sources,
+        model: result.model,
+        toolCount: result.toolCount,
+        chatLogId: chatLogId || null
+      })
+    } catch (logErr) {
+      console.error('[CHATLOG] gagal menyimpan riwayat:', logErr && logErr.message || logErr)
+    }
 
     res.json({
       success: true,
