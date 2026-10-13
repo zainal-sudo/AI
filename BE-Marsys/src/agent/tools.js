@@ -4,6 +4,7 @@ const productionService = require('../services/productionService')
 const financeService = require('../services/financeService')
 const marketingService = require('../services/marketingService')
 const purchaseService = require('../services/purchaseService')
+const komposisiService = require('../services/komposisiService')
 
 // Definisikan tools yang bisa dipakai AI agent.
 // Setiap tool: name, description, parameters (JSON Schema function-calling), dan fn(args) -> data mentah
@@ -421,6 +422,53 @@ const tools = [
       groupBy: a.groupBy || 'none',
       searchSupplier: a.supplier, searchBahan: a.bahan, limit: a.limit
     })
+  },
+  {
+    name: 'komposisi_produk',
+    description:
+      'Melihat RESEP / komposisi bahan penyusun satu produk campuran aspal (tbarangkomposisi + tbahan). ' +
+      'Menampilkan persen tiap bahan dan kebutuhan Kg per 1 ton produk (persen/100 x 1000 kg). ' +
+      'Pakai sebelum menjawab soal resep, formula, atau kebutuhan bahan per ton.',
+    parameters: {
+      type: 'object',
+      properties: {
+        barang: { type: 'string', description: 'Nama/kode produk, misal AC-WC, AC-BC, HRS-WC, SS A (opsional jika idBarang diisi)' },
+        idBarang: { type: 'number', description: 'ID barang tbarang (opsional)' }
+      },
+      required: []
+    },
+    fn: (a) => komposisiService.komposisiProduk({ barang: a.barang || '', idBarang: a.idBarang || 0 })
+  },
+  {
+    name: 'estimasi_produksi',
+    description:
+      'ESTIMASI kemampuan PRODUKSI (berapa TON bisa diproduksi) dari STOK bahan saat ini (tmasterstokbahan s/d hari ini, semua gudang) ' +
+      'dibagi kebutuhan resep per ton (tbarangkomposisi). Rumus: maks_ton = MIN(stok_bahan / kebutuhan_per_ton), bahan terkecil = pembatas. ' +
+      'Isi "barang" dengan nama produk (misal AC-WC) atau "semua" untuk semua produk beresep. Isi "targetTon" bila user punya rencana produksi tertentu ' +
+      'untuk dicek cukup/tidaknya bahan (menampilkan kurang_kg per bahan). WAJIB dipakai untuk pertanyaan "bisa produksi berapa ton", "stok cukup untuk berapa ton", "mau produksi X ton kurang apa".',
+    parameters: {
+      type: 'object',
+      properties: {
+        barang: { type: 'string', description: 'Nama produk (misal AC-WC) atau "semua" untuk semua produk. Default semua.' },
+        idBarang: { type: 'number', description: 'ID barang (opsional, mengalahkan nama)' },
+        targetTon: { type: 'number', description: 'Rencana produksi dalam TON untuk dicek kecukupan bahan (opsional)' }
+      },
+      required: []
+    },
+    fn: (a) => komposisiService.estimasiProduksi({ barang: a.barang || 'semua', idBarang: a.idBarang || 0, targetTon: a.targetTon || 0 })
+  },
+  {
+    name: 'daftar_produk_beresep',
+    description: 'Daftar produk jadi beserta jumlah bahan penyusunnya (dari tbarang + tbarangkomposisi). Dipakai untuk mencari nama produk sebelum cek komposisi/estimasi.',
+    parameters: {
+      type: 'object',
+      properties: {
+        search: { type: 'string', description: 'Teks pencarian nama/kode produk (opsional)' },
+        limit: { type: 'number', description: 'Maksimal baris' }
+      },
+      required: []
+    },
+    fn: (a) => komposisiService.cariBarangJadi(a.search || '', a.limit)
   },
   {
     name: 'daftar_supplier',
