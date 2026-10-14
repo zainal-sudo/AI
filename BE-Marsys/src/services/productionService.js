@@ -1,8 +1,9 @@
 const { query } = require('../db')
+const { today } = require('../utils/date')
 
 async function rekapJadwalProduksi({ tanggalAwal, tanggalAkhir, searchCustomer, searchBarang, searchTujuan, limit = 200 }) {
   if (!tanggalAwal && !tanggalAkhir) {
-    tanggalAkhir = tanggalAkhir || new Date().toISOString().slice(0, 10)
+    tanggalAkhir = tanggalAkhir || today()
     tanggalAwal = tanggalAwal || tanggalAkhir.slice(0, 8) + '01'
   }
   const dates = { tanggalAwal, tanggalAkhir }

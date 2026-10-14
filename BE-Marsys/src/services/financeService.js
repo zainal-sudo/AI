@@ -1,4 +1,5 @@
 const { query } = require('../db')
+const { today } = require('../utils/date')
 
 async function rekapPiutang({ searchCustomer }) {
   const where = []
@@ -29,7 +30,7 @@ async function rekapPiutang({ searchCustomer }) {
 
 async function rekapBiaya({ tanggalAwal, tanggalAkhir, searchAkun }) {
   if (!tanggalAwal && !tanggalAkhir) {
-    tanggalAkhir = tanggalAkhir || new Date().toISOString().slice(0, 10)
+    tanggalAkhir = tanggalAkhir || today()
     tanggalAwal = tanggalAwal || tanggalAkhir.slice(0, 8) + '01'
   }
   const dates = { tanggalAwal, tanggalAkhir }
@@ -71,7 +72,7 @@ function parsePeriodeLR(tanggalAwal, tanggalAkhir) {
 
 async function labaRugi({ tanggalAwal, tanggalAkhir }) {
   if (!tanggalAwal && !tanggalAkhir) {
-    tanggalAkhir = new Date().toISOString().slice(0, 10)
+    tanggalAkhir = today()
     tanggalAwal = tanggalAkhir.slice(0, 8) + '01'
   }
   if (!tanggalAwal) tanggalAwal = tanggalAkhir
@@ -115,7 +116,7 @@ async function neraca({ tanggal, tahun, bulan }) {
   if (tahun && bulan) {
     y = parseInt(tahun, 10); m = parseInt(bulan, 10)
   } else {
-    const t = String(tanggal || new Date().toISOString().slice(0, 10)).slice(0, 10)
+    const t = String(tanggal || today()).slice(0, 10)
     y = parseInt(t.slice(0, 4), 10); m = parseInt(t.slice(5, 7), 10)
     tanggal = t
   }
@@ -179,7 +180,7 @@ const LANCAR = new Set([
 // Terbukti identik dengan tneraca untuk bulan yang sudah posting (mis. Kas Kecil 15.083.427 sama persis),
 // tapi tetap up-to-date harian tanpa menunggu posting akhir bulan.
 async function neracaRealtime({ tanggal }) {
-  const t = String(tanggal || new Date().toISOString().slice(0, 10)).slice(0, 10)
+  const t = String(tanggal || today()).slice(0, 10)
   const rows = await query(
     `SELECT j.Kelompok AS kategori, j.ACCOUNT AS kode, j.AccountName AS akun,
             ROUND(SUM(j.Debet),0) AS debet, ROUND(SUM(j.Kredit),0) AS kredit,
@@ -232,7 +233,7 @@ async function neracaRealtime({ tanggal }) {
 // Terbukti identik dengan tlabarugi untuk bulan yang sudah posting (mis. Sep 2026 sama persis per kategori).
 async function labaRugiRealtime({ tanggalAwal, tanggalAkhir }) {
   if (!tanggalAwal && !tanggalAkhir) {
-    tanggalAkhir = new Date().toISOString().slice(0, 10)
+    tanggalAkhir = today()
     tanggalAwal = tanggalAkhir.slice(0, 8) + '01'
   }
   if (!tanggalAwal) tanggalAwal = tanggalAkhir
@@ -274,7 +275,7 @@ async function labaRugiRealtime({ tanggalAwal, tanggalAkhir }) {
 
 async function bukuBesar({ tanggalAwal, tanggalAkhir, akun, limit = 200 }) {
   if (!tanggalAwal && !tanggalAkhir) {
-    tanggalAkhir = new Date().toISOString().slice(0, 10)
+    tanggalAkhir = today()
     tanggalAwal = tanggalAkhir.slice(0, 8) + '01'
   }
   const where = ['j.Tanggal BETWEEN ? AND ?']

@@ -1,4 +1,5 @@
 const { query } = require('../db')
+const { today } = require('../utils/date')
 
 function escFilters({ idCustomer, idMarketing, searchCustomer, searchMarketing }) {
   const where = []
@@ -11,7 +12,7 @@ function escFilters({ idCustomer, idMarketing, searchCustomer, searchMarketing }
 
 async function rekapPenjualan({ tanggalAwal, tanggalAkhir, groupBy = 'none', idCustomer, idMarketing, searchCustomer, searchMarketing }) {
   if (!tanggalAwal && !tanggalAkhir) {
-    tanggalAkhir = tanggalAkhir || new Date().toISOString().slice(0, 10)
+    tanggalAkhir = tanggalAkhir || today()
     tanggalAwal = tanggalAwal || tanggalAkhir.slice(0, 8) + '01'
   }
   const period = { tanggalAwal, tanggalAkhir }

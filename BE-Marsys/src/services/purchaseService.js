@@ -1,8 +1,9 @@
 const { query } = require('../db')
+const { today } = require('../utils/date')
 
 function defaultPeriod(tanggalAwal, tanggalAkhir) {
   if (!tanggalAwal && !tanggalAkhir) {
-    tanggalAkhir = tanggalAkhir || new Date().toISOString().slice(0, 10)
+    tanggalAkhir = tanggalAkhir || today()
     tanggalAwal = tanggalAwal || tanggalAkhir.slice(0, 8) + '01'
   }
   if (!tanggalAwal) tanggalAwal = tanggalAkhir

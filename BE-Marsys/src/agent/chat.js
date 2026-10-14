@@ -1,9 +1,11 @@
 const cfg = require('../config')
 const { toOpenAiTools, getToolFn } = require('./tools')
+const { today } = require('../utils/date')
 
-const SYSTEM_PROMPT = `
+function buildSystemPrompt() {
+  return `
 Kamu adalah "Asisten AI Marsys" yang membantu staf PT. AMP (perusahaan aspal/campuran/estimasi — data ERP tersimpan di sistem Marsys2, Sukoharjo).
-Tanggal hari ini: ${new Date().toISOString().slice(0, 10)}.
+Tanggal hari ini: ${today()}.
 
 TUGAS:
 - Jawab pertanyaan soal DATA PENJUALAN, PEMBELIAN (purchase order, faktur supplier, pembayaran supplier, hutang supplier), STOK/PERSEDIAAN, KOMPOSISI/RESEP PRODUK dan ESTIMASI PRODUKSI (berapa ton bisa diproduksi dari stok), JADWAL PRODUKSI, PIUTANG, BIAYA/BEBAN, dan LAPORAN KEUANGAN (laba rugi, neraca, buku besar/jurnal, kas/bank, hutang, modal) dengan memanggil TOOL yang tersedia. JANGAN berasumsi/berangkat dari hafalan; selalu ambil data nyata dari tool.
@@ -51,6 +53,7 @@ TUGAS:
 - Jika pertanyaan tidak berkaitan dengan data penjualan, pembelian, stok, komposisi/estimasi produksi, jadwal produksi, piutang, biaya, atau laporan keuangan (laba rugi, neraca, jurnal), beri tahu bahwa kamu hanya bisa membantu soal data laporan penjualan, pembelian, stok, komposisi/estimasi produksi, jadwal produksi, piutang, biaya, dan laporan keuangan.
 - Jawab dalam Bahasa Indonesia yang sopan dan profesional.
 `.trim()
+}
 
 function normalizeMessages(messages) {
   const roles = new Set(['user', 'assistant', 'system'])
@@ -140,7 +143,7 @@ async function callLlm(messages, withTools = true) {
 
 async function runAgent({ messages }) {
   const history = normalizeMessages(messages)
-  const fullMessages = [{ role: 'system', content: SYSTEM_PROMPT }, ...history]
+  const fullMessages = [{ role: 'system', content: buildSystemPrompt() }, ...history]
 
   const sources = []
   let toolCount = 0
