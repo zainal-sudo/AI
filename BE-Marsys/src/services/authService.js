@@ -1,7 +1,7 @@
 const { query } = require('../db')
 const { marsysEncrypt } = require('../auth/marsys-crypto')
 
-const COMPANY_NAME = 'PT. AMP'
+const COMPANY_NAME = 'PT BERKAH SOLO BERDIKARI'
 const COMPANY_ADDRESS = 'Jl. Tawangsari - Bulu Km. 02, Desa Lorog, Tawangsari, Sukoharjo'
 
 async function listCabang() {

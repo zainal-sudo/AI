@@ -8,6 +8,7 @@ function normalizeBaseUrl(u) {
 
 const cfg = {
   port: parseInt(process.env.PORT || '4000', 10),
+  host: process.env.HOST || '0.0.0.0',
 
   db: {
     host: process.env.DB_HOST || '143.198.220.117',

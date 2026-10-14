@@ -118,6 +118,15 @@
           ref="inputEl"
         ></textarea>
         <button
+          v-if="voiceSupported && !loading"
+          class="mic-btn"
+          :class="{ listening: isListening }"
+          @click="toggleVoice"
+          :title="isListening ? 'Berhenti mendengarkan' : 'Bicara'"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+        <button
           v-if="loading"
           class="send-btn stop"
           @click="stop"
@@ -140,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useToast } from 'vue-toastification'
 import { chatWithAiStream, sendAiFeedback, getAiHistory, type AiChatMessage } from '@/api/aiApi'
 
@@ -278,6 +287,90 @@ const showHistory = async () => {
 
 onMounted(() => {
   loadHistory()
+})
+
+// ---- Voice input (Web Speech API) ----
+const voiceSupported = ref(false)
+const isListening = ref(false)
+let recognition: any = null
+let finalTranscript = ''
+let voiceCancelled = false
+
+const SpeechRecognitionCtor =
+  (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+
+if (SpeechRecognitionCtor) {
+  voiceSupported.value = true
+  recognition = new SpeechRecognitionCtor()
+  recognition.lang = 'id-ID'
+  recognition.continuous = false
+  recognition.interimResults = true
+  recognition.maxAlternatives = 1
+
+  recognition.onresult = (event: any) => {
+    let interim = ''
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const res = event.results[i]
+      const txt = (res[0] && res[0].transcript) || ''
+      if (res.isFinal) finalTranscript += txt
+      else interim += txt
+    }
+    input.value = (finalTranscript + interim).trim()
+  }
+
+  recognition.onerror = (event: any) => {
+    isListening.value = false
+    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+      toast.error('Izin mikrofon ditolak. Aktifkan izin mic di pengaturan browser.')
+    } else if (event.error === 'no-speech') {
+      toast.info('Tidak ada suara terdeteksi, coba lagi.')
+    } else if (event.error !== 'aborted') {
+      toast.error('Gagal mendengarkan: ' + event.error)
+    }
+  }
+
+  recognition.onend = () => {
+    isListening.value = false
+    const text = (finalTranscript || input.value).trim()
+    finalTranscript = ''
+    if (!voiceCancelled && text && !loading.value) {
+      send(text)
+    }
+    voiceCancelled = false
+  }
+}
+
+const startVoice = () => {
+  if (!recognition || isListening.value || loading.value) return
+  voiceCancelled = false
+  finalTranscript = ''
+  input.value = ''
+  try {
+    recognition.start()
+    isListening.value = true
+  } catch {
+    isListening.value = false
+  }
+}
+
+const stopVoice = () => {
+  if (recognition && isListening.value) {
+    voiceCancelled = true
+    recognition.abort()
+    isListening.value = false
+  }
+}
+
+const toggleVoice = () => {
+  if (isListening.value) stopVoice()
+  else startVoice()
+}
+
+onBeforeUnmount(() => {
+  if (recognition && isListening.value) {
+    voiceCancelled = true
+    recognition.abort()
+  }
 })
 
 const stop = () => {
@@ -744,6 +837,37 @@ const send = async (preset?: string) => {
 
 .input-wrapper textarea:focus {
   outline: none;
+}
+
+.mic-btn {
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s;
+}
+
+.mic-btn:hover {
+  background: #334155;
+  color: #f8fafc;
+}
+
+.mic-btn.listening {
+  background: #ef4444;
+  color: #ffffff;
+  animation: mic-pulse 1.2s infinite;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
 }
 
 .send-btn {

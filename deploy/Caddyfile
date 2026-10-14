@@ -1,0 +1,25 @@
+# HTTPS otomatis untuk AMP AI: frontend + backend dalam satu origin.
+# Ganti ai.example.com dengan host publik server Anda.
+# - Punya domain: pakai domain itu, mis. ai.amp.co.id
+# - Belum punya domain: pakai <IP-dengan-tanda-hubung>.sslip.io,
+#   mis. IP 103.175.221.20 menjadi 103-175-221-20.sslip.io
+# Caddy otomatis redirect HTTP ke HTTPS dan mengurus sertifikat.
+# Syarat: port 80 dan 443 terbuka, dan host tersebut mengarah ke VPS ini.
+
+ai.example.com {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	handle /health {
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	handle {
+		root * /var/www/amp-ai/dist
+		try_files {path} /index.html
+		file_server
+	}
+}

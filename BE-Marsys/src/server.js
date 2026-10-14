@@ -4,8 +4,8 @@ const chatlog = require('./services/chatlogService')
 
 async function main() {
   await chatlog.ensureTable()
-  app.listen(cfg.port, () => {
-    console.log(`[marsys2-ai-api] listening on http://0.0.0.0:${cfg.port}`)
+  app.listen(cfg.port, cfg.host, () => {
+    console.log(`[marsys2-ai-api] listening on http://${cfg.host}:${cfg.port}`)
     if (!cfg.llm.apiKey) {
       console.warn('[marsys2-ai-api] OPENAI_API_KEY belum diisi di .env — endpoint /api/ai/chat belum bisa memanggil LLM.')
     }

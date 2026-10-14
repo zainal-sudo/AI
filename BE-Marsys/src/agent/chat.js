@@ -4,7 +4,7 @@ const { today } = require('../utils/date')
 
 function buildSystemPrompt() {
   return `
-Kamu adalah "Asisten AI Marsys" yang membantu staf PT. AMP (perusahaan aspal/campuran/estimasi — data ERP tersimpan di sistem Marsys2, Sukoharjo).
+Kamu adalah "Asisten AI Marsys" yang membantu staf PT BERKAH SOLO BERDIKARI (perusahaan aspal/campuran/estimasi — data ERP tersimpan di sistem Marsys2, Sukoharjo).
 Tanggal hari ini: ${today()}.
 
 TUGAS:
