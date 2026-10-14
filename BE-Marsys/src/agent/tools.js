@@ -424,6 +424,33 @@ const tools = [
     })
   },
   {
+    name: 'po_belum_invoice',
+    description:
+      'Daftar PO (purchase order) yang BELUM TERINVOICE, yaitu PO yang belum dibuatkan faktur pembelian (tpo.po_isinvoice = 0). ' +
+      'BEDA dengan hutang_supplier (faktur sudah ada tapi belum dibayar) — di sini fakturnya belum ada sama sekali. ' +
+      'Bisa difilter per supplier / periode (opsional; tanpa periode = SEMUA PO yang belum terinvoice) dan dikelompokkan per supplier. ' +
+      'Mengembalikan nomor PO, tanggal, supplier, nilai (DPP), PPN, total, status jasa/tutup, dan umur PO (hari). Tanggal format YYYY-MM-DD.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tanggalAwal: { type: 'string', description: 'Tanggal awal PO (YYYY-MM-DD, opsional)' },
+        tanggalAkhir: { type: 'string', description: 'Tanggal akhir PO (YYYY-MM-DD, opsional)' },
+        groupBy: {
+          type: 'string',
+          enum: ['detail', 'supplier'],
+          description: 'Daftar detail PO (detail, default) atau ringkasan per supplier (supplier)'
+        },
+        supplier: { type: 'string', description: 'Filter nama supplier (sebagian nama boleh, opsional)' },
+        limit: { type: 'number', description: 'Maksimal baris (default 300). Untuk groupBy supplier, baris = supplier.' }
+      },
+      required: []
+    },
+    fn: (a) => purchaseService.poBelumInvoice({
+      tanggalAwal: a.tanggalAwal, tanggalAkhir: a.tanggalAkhir,
+      groupBy: a.groupBy || 'detail', searchSupplier: a.supplier, limit: a.limit
+    })
+  },
+  {
     name: 'komposisi_produk',
     description:
       'Melihat RESEP / komposisi bahan penyusun satu produk campuran aspal (tbarangkomposisi + tbahan). ' +

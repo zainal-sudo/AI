@@ -86,9 +86,20 @@
                 👎
               </button>
             </div>
-            <button class="copy-btn" @click="copyText(msg.content)" title="Salin Teks">
-              📋 Salin
-            </button>
+            <div class="footer-actions">
+              <button
+                v-if="ttsSupported"
+                class="copy-btn"
+                :class="{ active: speakingIndex === idx }"
+                @click="toggleSpeak(msg.content, idx)"
+                :title="speakingIndex === idx ? 'Berhenti membacakan' : 'Bacakan hasil ini'"
+              >
+                {{ speakingIndex === idx ? '⏹ Stop' : '🔊 Bacakan' }}
+              </button>
+              <button class="copy-btn" @click="copyText(msg.content)" title="Salin Teks">
+                📋 Salin
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -186,6 +197,7 @@ const SOURCE_LABELS: Record<string, string> = {
   rekap_pembelian: 'Rekap Pembelian',
   detail_pembelian: 'Detail Pembelian',
   rekap_po: 'Rekap Purchase Order',
+  po_belum_invoice: 'PO Belum Invoice',
   daftar_supplier: 'Daftar Supplier',
   hutang_supplier: 'Hutang Supplier',
   rekap_pembayaran_supplier: 'Pembayaran Supplier',
@@ -198,6 +210,7 @@ const QUICK_CHIPS = [
   'Top penunggak piutang',
   'Stok kritis',
   'Pembelian bulan ini',
+  'PO belum terinvoice',
   'Hutang supplier',
 ]
 
@@ -371,6 +384,7 @@ onBeforeUnmount(() => {
     voiceCancelled = true
     recognition.abort()
   }
+  if (ttsSupported.value) window.speechSynthesis.cancel()
 })
 
 const stop = () => {
@@ -393,6 +407,61 @@ const logout = () => {
 const copyText = (text: string) => {
   navigator.clipboard.writeText(text)
   toast.success('Teks disalin ke clipboard!')
+}
+
+// ---- Text to speech (Web Speech Synthesis) ----
+const ttsSupported = ref(typeof window !== 'undefined' && 'speechSynthesis' in window)
+const speakingIndex = ref(-1)
+let ttsVoice: SpeechSynthesisVoice | null = null
+
+const pickVoice = () => {
+  if (!ttsSupported.value) return
+  const voices = window.speechSynthesis.getVoices()
+  ttsVoice =
+    voices.find((v) => v.lang && v.lang.toLowerCase().startsWith('id')) ||
+    voices.find((v) => /indonesia/i.test(v.name)) ||
+    null
+}
+
+if (ttsSupported.value) {
+  pickVoice()
+  window.speechSynthesis.onvoiceschanged = pickVoice
+}
+
+const stopSpeak = () => {
+  if (!ttsSupported.value) return
+  window.speechSynthesis.cancel()
+  speakingIndex.value = -1
+}
+
+const toggleSpeak = (text: string, idx: number) => {
+  if (!ttsSupported.value) return
+  // Tekan lagi saat sedang membacakan pesan ini -> berhenti.
+  if (speakingIndex.value === idx) {
+    stopSpeak()
+    return
+  }
+  window.speechSynthesis.cancel()
+  const clean = String(text || '')
+    .replace(/[*_`#>]/g, ' ')
+    .replace(/^\s*[-•]\s*/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!clean) return
+
+  const utter = new SpeechSynthesisUtterance(clean)
+  utter.lang = 'id-ID'
+  if (ttsVoice) utter.voice = ttsVoice
+  utter.rate = 1
+  utter.pitch = 1
+  utter.onend = () => {
+    if (speakingIndex.value === idx) speakingIndex.value = -1
+  }
+  utter.onerror = () => {
+    if (speakingIndex.value === idx) speakingIndex.value = -1
+  }
+  speakingIndex.value = idx
+  window.speechSynthesis.speak(utter)
 }
 
 const handleKeyUp = () => {
@@ -741,6 +810,13 @@ const send = async (preset?: string) => {
   gap: 0.25rem;
 }
 
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
 .fb-btn {
   background: transparent;
   border: none;
@@ -771,6 +847,11 @@ const send = async (preset?: string) => {
 .copy-btn:hover {
   color: #f8fafc;
   background: rgba(255, 255, 255, 0.1);
+}
+
+.copy-btn.active {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
 }
 
 /* Typing Indicator */

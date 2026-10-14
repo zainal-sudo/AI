@@ -208,6 +208,54 @@ async function rekapPo({ tanggalAwal, tanggalAkhir, groupBy = 'none', searchSupp
   return { params: period, groupBy, rows }
 }
 
+// Daftar PO yang BELUM TERINVOICE: PO belum dibuatkan faktur pembelian (tpo.po_isinvoice = 0).
+// Beda dengan hutang supplier (faktur sudah ada tapi belum dibayar) -> di sini fakturnya belum ada sama sekali.
+async function poBelumInvoice({ tanggalAwal, tanggalAkhir, groupBy = 'detail', searchSupplier, limit = 300 } = {}) {
+  const where = ['p.po_isinvoice = 0']
+  const params = []
+  if (tanggalAwal) { where.push('p.po_tanggal >= ?'); params.push(tanggalAwal) }
+  if (tanggalAkhir) { where.push('p.po_tanggal <= ?'); params.push(tanggalAkhir) }
+  if (searchSupplier) { where.push('s.sup_nama LIKE ?'); params.push(`%${searchSupplier}%`) }
+  const lim = Math.min(parseInt(limit, 10) || 300, 1000)
+
+  if (groupBy === 'supplier') {
+    const rows = await query(
+      `SELECT IFNULL(s.sup_nama, CONCAT('Supplier #', p.po_sup_id)) AS supplier,
+              COUNT(*) AS jumlah_po,
+              ROUND(SUM(p.po_amount), 0) AS nilai_dpp,
+              ROUND(SUM(p.po_taxamount), 0) AS ppn,
+              ROUND(SUM(p.po_amount + p.po_taxamount), 0) AS total
+         FROM tpo p
+         LEFT JOIN tsupplier s ON s.sup_id = p.po_sup_id
+        WHERE ${where.join(' AND ')}
+        GROUP BY p.po_sup_id, s.sup_nama
+        ORDER BY total DESC
+        LIMIT ${lim}`,
+      params
+    )
+    return { groupBy, rows }
+  }
+
+  const rows = await query(
+    `SELECT p.po_nomor AS nomor_po, p.po_tanggal AS tanggal,
+            IFNULL(s.sup_nama, CONCAT('Supplier #', p.po_sup_id)) AS supplier,
+            IFNULL(p.po_keterangan, '') AS keterangan,
+            ROUND(p.po_amount, 0) AS nilai_dpp,
+            ROUND(p.po_taxamount, 0) AS ppn,
+            ROUND(p.po_amount + p.po_taxamount, 0) AS total,
+            p.po_isjasa AS jasa, p.po_isclosed AS ditutup,
+            DATEDIFF(CURDATE(), p.po_tanggal) AS umur_hari
+       FROM tpo p
+       LEFT JOIN tsupplier s ON s.sup_id = p.po_sup_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY p.po_tanggal ASC, p.po_nomor
+      LIMIT ${lim}`,
+    params
+  )
+  const totalNilai = rows.reduce((acc, r) => acc + Number(r.total || 0), 0)
+  return { groupBy: 'detail', jumlah_po: rows.length, total_nilai: totalNilai, rows }
+}
+
 // Daftar supplier (id + nama + kontak).
 async function daftarSupplier(search = '', limit = 100) {
   return query(
@@ -300,6 +348,7 @@ module.exports = {
   rekapPembelian,
   detailPembelian,
   rekapPo,
+  poBelumInvoice,
   daftarSupplier,
   hutangSupplier,
   rekapPembayaranSupplier
