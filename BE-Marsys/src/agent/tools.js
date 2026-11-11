@@ -171,6 +171,8 @@ const tools = [
     name: 'jadwal_produksi',
     description:
       'Melihat rekap / daftar jadwal produksi (tjadwalproduksi) berdasarkan rentang tanggal. ' +
+      'Filter tanggal WAJIB memakai jp_tanggal = TANGGAL PRODUKSINYA (bukan tanggal pembuatan record / date_create / created_at). ' +
+      'Untuk "jadwal/rencana produksi hari ini", tanggalAwal = tanggalAkhir = tanggal hari ini sesuai system prompt. ' +
       'Bisa difilter berdasarkan nama customer, nama barang, atau tujuan pengiriman. Tanggal format YYYY-MM-DD.',
     parameters: {
       type: 'object',
